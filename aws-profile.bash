@@ -1,5 +1,6 @@
 
 export __AWS_PROFILE__CREDENTIALS=~/.aws/credentials
+export __AWS_PROFILE__CONFIG=~/.aws/config
 export __AWS_PROFILE__CONF_DIR=~/.aws-profile
 export __AWS_PROFILE__PROFILE_PERSISTENT_FILE="${__AWS_PROFILE__CONF_DIR}/current-profile"
 if ! ls "${__AWS_PROFILE__CONF_DIR}" &> /dev/null; then
@@ -74,6 +75,30 @@ function __aws_profile__check_and_reset_current_profile() {
   fi
 }
 
+function __aws_profile__extract_config_section() {
+  local profile="$1"
+  local awk_script='
+    BEGIN {
+      found = 0
+    }
+    /^\[.*\]\r?$/ {
+      if (found) {
+        exit 0
+      } {
+        if (match($0, "^\\[(profile )?'"${profile}"'\\]\r?$")) {
+          found = 1
+        }
+      }
+    }
+    {
+      if (found) {
+        print $0
+      }
+    }
+  '
+  awk "${awk_script}" "${__AWS_PROFILE__CONFIG}"
+}
+
 function __aws_profile__set_profile() {
   if (( $# < 1 )); then
     echo "aws-profile: __aws_profile__set_profile: less argument." 1>&2
@@ -85,8 +110,17 @@ function __aws_profile__set_profile() {
     __aws_profile__show_help
     return 1
   fi
+  local active_section="$(__aws_profile__extract_config_section "$1")"
+  local default_region="$(echo "${active_section}" | grep -E '^region *=' | sed -r -e 's/^region *= *(.*)$/\1/')"
+  local default_output="$(echo "${active_section}" | grep -E '^output *=' | sed -r -e 's/^output *= *(.*)$/\1/')"
   printf "$1" > "${__AWS_PROFILE__PROFILE_PERSISTENT_FILE}" 2> /dev/null
   export AWS_PROFILE="$1"
+  if (( "${#default_region}" > 0 )); then
+    export AWS_DEFAULT_REGION="${default_region}"
+  fi
+  if (( "${#default_output}" > 0 )); then
+    export AWS_DEFAULT_OUTPUT="${default_output}"
+  fi
 }
 
 function aws-profile() {
