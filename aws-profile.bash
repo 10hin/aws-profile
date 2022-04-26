@@ -9,7 +9,7 @@ if ! ls "${__AWS_PROFILE__CONF_DIR}" &> /dev/null; then
 fi
 if ! [[ -f "${__AWS_PROFILE__PROFILE_PERSISTENT_FILE}" ]]; then
   if [[ -d "${__AWS_PROFILE__CONF_DIR}" ]]; then
-    printf "default" > ${__AWS_PROFILE__PROFILE_PERSISTENT_FILE} 2> /dev/null
+    echo -n "default" > ${__AWS_PROFILE__PROFILE_PERSISTENT_FILE} 2> /dev/null
   else
     echo "aws-profile.bash: configuration directory name ${__AWS_PROFILE__CONF_DIR} exists, but not directory! cannot store configuration." 1>&2
   fi
@@ -28,7 +28,7 @@ function __aws_profile__list_profiles() {
           prefix="\x1b[0m  "
           suffix="\x1b[0m"
         fi
-        echo "${prefix}${profile}${suffix}"
+        echo -e "${prefix}${profile}${suffix}"
       done
 }
 
@@ -48,12 +48,12 @@ function __aws_profile__show_help() {
 
          aws-profile <profile>
              set profile as <profile>
-             <profile> must appear in profile credentials file.
-             (${__AWS_PROFILE__CREDENTIALS})
+             <profile> must appear in profile config file.
+             (${__AWS_PROFILE__CONFIG})
 
          aws-profile ls
-             list profile in cretentials file.
-             (${__AWS_PROFILE__CREDENTIALS})
+             list profile in config file.
+             (${__AWS_PROFILE__CONFIG})
 
          aws-profile (-h|--help)
              show this help.
@@ -113,9 +113,26 @@ function __aws_profile__set_profile() {
     __aws_profile__show_help
     return 1
   fi
-  local active_section="$(__aws_profile__extract_config_section "$1")"
-  local default_region="$(echo "${active_section}" | grep -E '^region *=' | sed -r -e 's/^region *= *(.*)$/\1/')"
-  local default_output="$(echo "${active_section}" | grep -E '^output *=' | sed -r -e 's/^output *= *(.*)$/\1/')"
+
+  local active_section
+  active_section="$(
+    __aws_profile__extract_config_section "$1"
+  )"
+
+  local default_region
+  default_region="$(
+    echo "${active_section}" \
+      | grep -E '^region *=' \
+      | sed -r -e 's/^region *= *(.*)$/\1/'
+  )"
+
+  local default_output
+  default_output="$(
+    echo "${active_section}" \
+      | grep -E '^output *=' \
+      | sed -r -e 's/^output *= *(.*)$/\1/'
+  )"
+
   echo -n "$1" > "${__AWS_PROFILE__PROFILE_PERSISTENT_FILE}" 2> /dev/null
   export AWS_PROFILE="$1"
   if (( "${#default_region}" > 0 )); then
