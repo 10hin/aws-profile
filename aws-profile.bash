@@ -1,5 +1,6 @@
+# this script intended to be loaded by "source" or "." command at start of shell
+# therefore, do not place shebang (#!) nor "set" command here
 
-export __AWS_PROFILE__CREDENTIALS=~/.aws/credentials
 export __AWS_PROFILE__CONFIG=~/.aws/config
 export __AWS_PROFILE__CONF_DIR=~/.aws-profile
 export __AWS_PROFILE__PROFILE_PERSISTENT_FILE="${__AWS_PROFILE__CONF_DIR}/current-profile"
@@ -16,17 +17,19 @@ fi
 
 function __aws_profile__list_profiles() {
   __aws_profile__check_and_reset_current_profile
-  grep -E '^\[[^][]*\]\s*$' "${__AWS_PROFILE__CREDENTIALS}" | sed -r -e 's/\[([^][]*)\]\s*$/\1/' |\
-  while read profile; do
-    if [[ "${profile}" == "$(cat ${__AWS_PROFILE__PROFILE_PERSISTENT_FILE})" ]]; then
-      prefix="\x1b[33m* "
-      suffix="\x1b[0m"
-    else
-      prefix="\x1b[0m  "
-      suffix="\x1b[0m"
-    fi
-    printf "${prefix}${profile}${suffix}\n"
-  done
+
+  grep -E '^\[(profile )?[^][ ]*\]\s*$' "${__AWS_PROFILE__CONFIG}" \
+    | sed -r -e 's/\[(profile )?([^][ ]*)\]\s*$/\2/' \
+    | while read -r profile; do
+        if [[ "${profile}" == "$(cat ${__AWS_PROFILE__PROFILE_PERSISTENT_FILE})" ]]; then
+          prefix="\x1b[33m* "
+          suffix="\x1b[0m"
+        else
+          prefix="\x1b[0m  "
+          suffix="\x1b[0m"
+        fi
+        echo "${prefix}${profile}${suffix}"
+      done
 }
 
 function __aws_profile__current_profile() {
@@ -59,8 +62,8 @@ __EOT__
 }
 
 function __aws_profile__check_and_reset_current_profile() {
-  if ! cat "${__AWS_PROFILE__CREDENTIALS}" | grep -E "^\[$(cat ${__AWS_PROFILE__PROFILE_PERSISTENT_FILE})\]\s*$" &> /dev/null; then
-    if cat "${__AWS_PROFILE__CREDENTIALS}" | grep -E "^\[default\]\s*$" &> /dev/null; then
+  if ! grep -E "^\[(profile )?$(cat ${__AWS_PROFILE__PROFILE_PERSISTENT_FILE})\]\s*$" "${__AWS_PROFILE__CONFIG}" &> /dev/null; then
+    if grep -E "^\[default\]\s*$" "${__AWS_PROFILE__CONFIG}" &> /dev/null; then
       __aws_profile__set_profile default
     else
       first_profile=$(grep -E '^\[[^][]*\]\s*$' | head -1 | sed -r -e 's/\[([^][]*)\]\s*$/\1/')
@@ -105,15 +108,15 @@ function __aws_profile__set_profile() {
     __aws_profile__show_help
     return 1
   fi
-  if ! cat ${__AWS_PROFILE__CREDENTIALS} | grep -E "^\[$1\]" &> /dev/null; then
-    echo "aws-profile: __aws_profile__set_profile: specified profile ($1) not exist in credentials file." 1>&2
+  if ! grep -E "^\[(profile )?$1\]" "${__AWS_PROFILE__CONFIG}" &> /dev/null; then
+    echo "aws-profile: __aws_profile__set_profile: specified profile ($1) not exist in config file." 1>&2
     __aws_profile__show_help
     return 1
   fi
   local active_section="$(__aws_profile__extract_config_section "$1")"
   local default_region="$(echo "${active_section}" | grep -E '^region *=' | sed -r -e 's/^region *= *(.*)$/\1/')"
   local default_output="$(echo "${active_section}" | grep -E '^output *=' | sed -r -e 's/^output *= *(.*)$/\1/')"
-  printf "$1" > "${__AWS_PROFILE__PROFILE_PERSISTENT_FILE}" 2> /dev/null
+  echo -n "$1" > "${__AWS_PROFILE__PROFILE_PERSISTENT_FILE}" 2> /dev/null
   export AWS_PROFILE="$1"
   if (( "${#default_region}" > 0 )); then
     export AWS_DEFAULT_REGION="${default_region}"
