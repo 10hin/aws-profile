@@ -1,6 +1,16 @@
 # aws-profile
 
-Utility tool to manage profiles in aws-cli.
+Make easy to switch profile of aws-cli.
+
+aws-cli supports 2-way for specifying profile:
+
+- Command parameter `aws --profile "${profile}"`
+- Environment variable `export AWS_PROFILE="${profile}"` or `export AWS_DEFAULT_PROFILE`.
+
+But no support for configurable persistent default.
+
+> Here, "persistent" means that the value is shared by different shell sessions on the same machine, by the same user, and is not lost upon machine restart.
+> We can configure the default by adding `export AWS_PROFILE=...` to user profile (`~/.profile`, `~/.bashrc`, etc.), but this solution need text editor to reconfigure and much pane to user with grep-by-eyes.
 
 ## How to install
 
@@ -23,7 +33,7 @@ Utility tool to manage profiles in aws-cli.
     - print current profile name.
 - `aws-profile ls`
     - print all list of profile.
-    - current profile follows caracter `*`, like:
+    - current profile follows character `*`, like:
         ```
           default
           non-active-profile
@@ -35,3 +45,11 @@ Utility tool to manage profiles in aws-cli.
     - `<profile>` must be configured by `aws configure --profile <profile>` before set.
 - `aws-profile (-h|--help)`
     - print help.
+
+## Dependency
+
+- Bash
+- sed
+  - author uses "GNU sed".
+- awk
+  - author uses gawk.
